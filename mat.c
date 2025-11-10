@@ -52,8 +52,86 @@ int imwrite(Mat * mat,const char *filename,int comp)
     return _ops.write(filename,mat->rows,mat->cols,comp,mat->data);
 } 
 
+Mat * mat_create(int rows,int cols,int channels,MatType type){
+    Mat * p_mat = malloc(sizeof(Mat));
+    switch(type){
+    case MAT_U8 :  
+        p_mat->data = malloc(rows * cols * channels);
+    break;
+    case MAT_F64 :     
+        p_mat->data = malloc(rows * cols * channels * 8);
+    break;
+    }
+    
+    p_mat->cols = cols;
+    p_mat->rows = rows;
+    p_mat->channels = channels;
+    p_mat->elem_size = 1;
+    p_mat->type = type;
+    p_mat->step = 1;
+    return p_mat;
+}
+int sv_rgb_to_gray(Mat* input, Mat * output)
+{
+    if(input == NULL || output == NULL){
+        return 1;
+    }
+    DECLARE_RGB_MAT(p_input,input);
+    DECLARE_HSV_MAT(p_output,output);
+    HSV hsv;
+
+    for(int i = 0; i < output->rows; i++){
+        for(int j = 0; j < input->cols; j++){
+            float R = p_input[i][j].r / 255.0f;
+            float G = p_input[i][j].g  / 255.0f;
+            float B = p_input[i][j].b  / 255.0f;
+            float cmax = fmaxf(R, fmaxf(G, B));
+            float cmin = fminf(R, fminf(G, B));
+            float delta = cmax - cmin;
+            // Hue
+            if (delta == 0)
+                hsv.h = 0;
+            else if (cmax == R)
+                hsv.h = fmodf((60 * ((G - B) / delta) + 360), 360.0f);
+            else if (cmax == G)
+                hsv.h = fmodf((60 * ((B - R) / delta) + 120), 360.0f);
+            else
+                hsv.h = fmodf((60 * ((R - G) / delta) + 240), 360.0f);
+
+            // Saturation
+            hsv.s = (cmax == 0) ? 0 : (delta / cmax);
+
+            // Value
+            hsv.v = cmax;
+        }
+    }
+    return 0;
+}
+int sv_rgb_to_hsv(Mat* input, Mat * output)
+{
+    if(input == NULL || output == NULL){
+        return 1;
+    }
+    DECLARE_RGB_MAT(p_input,input);
+    DECLARE_R_MAT(p_output,output);
+    for(int i = 0; i < output->rows; i++){
+        for(int j = 0; j < input->cols; j++){
+            uint8_t gray = (uint8_t)((p_input[i][j].r * 77 +  p_input[i][j].g * 150 +  p_input[i][j].b * 29) >> 8);
+            p_output[i][j] = gray;
+        }
+    }
+    return 0;
+}
+
+int sv_cvtColor(Mat* input, Mat * output,COLOR_TYPE type)
+{
+
+}
 int main()
 {
     SetConsoleOutputCP(65001);
-    imwrite(imread("output.jpg",3),"test_out.jpg",3);
+    Mat * p_mat = imread("test.png",3);
+    Mat * p_out = mat_create(p_mat->rows,p_mat->cols,1,0);
+    sv_rgb_to_gray(p_mat,p_out);
+    imwrite(p_out,"test_out.jpg",1);
 }
