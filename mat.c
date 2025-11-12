@@ -42,14 +42,15 @@ Mat * imread(const char *filename,int comp){
     if (!mat) return NULL;
     
     // 使用 stb_image 加载图像
-    mat->data = _ops.read(filename, &mat->rows, &mat->cols, &mat->channels, comp);
+    mat->data = _ops.read(filename, &mat->cols, &mat->rows, &mat->channels, comp);
     mat->type = MAT_U8;
     mat->elem_size = 1;
+    printf("mat->channels:%d\r\n",mat->channels);
     return mat;
 }
 int imwrite(Mat * mat,const char *filename,int comp)
 {
-    return _ops.write(filename,mat->rows,mat->cols,comp,mat->data);
+    return _ops.write(filename,mat->cols,mat->rows,comp,mat->data);
 } 
 
 Mat * mat_create(int rows,int cols,int channels,MatType type){
@@ -71,7 +72,7 @@ Mat * mat_create(int rows,int cols,int channels,MatType type){
     p_mat->step = 1;
     return p_mat;
 }
-int sv_rgb_to_gray(Mat* input, Mat * output)
+int sv_rgb_to_hsv(Mat* input, Mat * output)
 {
     if(input == NULL || output == NULL){
         return 1;
@@ -107,7 +108,7 @@ int sv_rgb_to_gray(Mat* input, Mat * output)
     }
     return 0;
 }
-int sv_rgb_to_hsv(Mat* input, Mat * output)
+int sv_rgb_to_gray(Mat* input, Mat * output)
 {
     if(input == NULL || output == NULL){
         return 1;
@@ -127,11 +128,48 @@ int sv_cvtColor(Mat* input, Mat * output,COLOR_TYPE type)
 {
 
 }
+
+int sv_crop(Mat* src, int x, int y, int w, int h)
+{
+
+    // 分配新内存
+    void* crop_data = malloc(src->cols *  src->rows * src->channels);
+    if (!crop_data) { printf("内存失败");return 3;}
+
+    // 使用正确的类型访问
+    DECLARE_RGB_MAT(src_array,src);
+    RGB(*dst_array)[src->cols] = (RGB(*)[src->cols])crop_data;
+    printf("尺寸%dx%d\n", src->cols, src->rows);
+    // 正确的循环顺序：行→列
+    for (int i = 0; i < h; i++) {          // 行循环 (高度方向)
+        for (int j = 0; j < w; j++) {      // 列循环 (宽度方向)
+            dst_array[i][j] = src_array[i][j];
+        }
+    }
+
+    // 更新图像信息
+    free(src->data);
+    src->data = crop_data;
+    src->cols = src->cols;
+    src->rows = src->rows;
+    src->step = w * sizeof(RGB);
+
+    printf("裁剪完成: 新尺寸%dx%d\n", w, h);
+    return 0;
+}
+
+Mat* sv_mat_add(Mat* a, Mat* b)
+{
+    if(a->data == NULL || b->data == NULL)
+        return NULL;
+    
+    
+}
 int main()
 {
     SetConsoleOutputCP(65001);
-    Mat * p_mat = imread("test.png",3);
+    Mat * p_mat = imread("test_1.jpg",3);
     Mat * p_out = mat_create(p_mat->rows,p_mat->cols,1,0);
-    sv_rgb_to_gray(p_mat,p_out);
-    imwrite(p_out,"test_out.jpg",1);
+    sv_crop(p_mat,0,0,600,200);
+    imwrite(p_mat,"test_out.jpg",3);
 }
