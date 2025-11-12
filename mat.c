@@ -157,7 +157,44 @@ int sv_crop(Mat* src, int x, int y, int w, int h)
     printf("裁剪完成: 新尺寸%dx%d\n", w, h);
     return 0;
 }
+int sv_crop_1(Mat* src, int x, int y, int w, int h)
+{
+    // 检查边界
+    if (x < 0 || y < 0 || w <= 0 || h <= 0 ||
+        x + w > src->cols || y + h > src->rows) {
+        return 1; // 参数错误
+    }
 
+    // 计算裁剪后的尺寸
+    int crop_cols = w;
+    int crop_rows = h;
+    size_t crop_size = crop_cols * crop_rows * src->channels;
+    
+    // 分配新内存
+    uint8_t* crop_data = (uint8_t*)malloc(crop_size);
+    if (!crop_data) {
+        return 2; // 内存分配失败
+    }
+
+    // 计算源图像的行字节数
+    int src_row_bytes = src->cols * src->channels;
+    int crop_row_bytes = crop_cols * src->channels;;
+
+    // 逐行拷贝数据
+    for (int i = 0; i < crop_rows; i++) {
+        uint8_t* src_row = src->data + ((y + i) * src_row_bytes) + (x * src->channels);
+        uint8_t* dst_row = crop_data + (i * crop_row_bytes);
+        memcpy(dst_row, src_row, crop_row_bytes);
+    }
+
+    // 更新源图像信息
+    free(src->data);
+    src->data = crop_data;
+    src->cols = crop_cols;
+    src->rows = crop_rows;
+
+    return 0; // 成功
+}
 Mat* sv_mat_add(Mat* a, Mat* b)
 {
     if(a->data == NULL || b->data == NULL)
@@ -170,6 +207,6 @@ int main()
     SetConsoleOutputCP(65001);
     Mat * p_mat = imread("test_1.jpg",3);
     Mat * p_out = mat_create(p_mat->rows,p_mat->cols,1,0);
-    sv_crop(p_mat,0,0,600,200);
+    sv_crop_1(p_mat,0,0,1000,200);
     imwrite(p_mat,"test_out.jpg",3);
 }
