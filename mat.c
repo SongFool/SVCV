@@ -187,6 +187,19 @@ int sv_crop_1(Mat* src, int x, int y, int w, int h)
         memcpy(dst_row, src_row, crop_row_bytes);
     }
 
+#if 0
+// 方法2：数组方式
+uint8_t (*src_2d)[src_row_bytes] = (uint8_t (*)[src_row_bytes])src->data;
+uint8_t (*dst_2d)[crop_row_bytes] = (uint8_t (*)[crop_row_bytes])crop_data;
+
+for (int i = 0; i < crop_rows; i++) {
+    uint8_t* src_row = &src_2d[y + i][x * src->channels];
+    uint8_t* dst_row = &dst_2d[i][0];
+    memcpy(dst_row, src_row, crop_row_bytes);
+}
+
+#endif
+
     // 更新源图像信息
     free(src->data);
     src->data = crop_data;
@@ -195,18 +208,106 @@ int sv_crop_1(Mat* src, int x, int y, int w, int h)
 
     return 0; // 成功
 }
-Mat* sv_mat_add(Mat* a, Mat* b)
+int sv_mat_add(Mat* a, Mat* b)
 {
+    #if 1
     if(a->data == NULL || b->data == NULL)
-        return NULL;
-    
-    
+        return 1;
+    if(a->channels != b->channels || a->cols != b->cols || a->rows != b->rows)
+        return 2;
+
+    switch(a->type){
+        case MAT_U8:
+        {      
+            DECLARE_RGB_MAT(p_a, a);
+            DECLARE_RGB_MAT(p_b, b);
+            for(int i = 0; i < a->rows; i++){
+                for(int j = 0; j < a->cols; j++){
+                    uint16_t r = p_a[i][j].r + p_b[i][j].r;
+                    uint16_t g = p_a[i][j].g + p_b[i][j].g;
+                    uint16_t b_val = p_a[i][j].b + p_b[i][j].b;
+
+                    p_a[i][j].r = (r > 255) ? 255 : r;
+                    p_a[i][j].g = (g > 255) ? 255 : g;
+                    p_a[i][j].b = (b_val > 255) ? 255 : b_val;
+                }
+            }
+            break;
+        }
+    }
+    return 0;
+    #endif
+}
+int sv_mat_sub(Mat* a, Mat* b)
+{
+    #if 1
+    if(a->data == NULL || b->data == NULL)
+        return 1;
+    if(a->channels != b->channels || a->cols != b->cols || a->rows != b->rows)
+        return 2;
+
+    switch(a->type){
+        case MAT_U8:
+        {      
+            DECLARE_RGB_MAT(p_a, a);
+            DECLARE_RGB_MAT(p_b, b);
+            for(int i = 0; i < a->rows; i++){
+                for(int j = 0; j < a->cols; j++){
+                    int16_t r = p_a[i][j].r - p_b[i][j].r;
+                    int16_t g = p_a[i][j].g - p_b[i][j].g;
+                    int16_t b_val = p_a[i][j].b - p_b[i][j].b;
+
+                    p_a[i][j].r = (r < 0) ? 0 : r;
+                    p_a[i][j].g = (g < 0) ? 0 : g;
+                    p_a[i][j].b = (b_val < 0) ? 0 : b_val;
+                }
+            }
+            break;
+        }
+    }
+    return 0;
+    #endif
+}
+
+int sv_binarize(Mat* input, Mat * output,int threshold)
+{
+    if(input == NULL || output == NULL){
+        return 1;
+    }
+    DECLARE_R_MAT(p_input,input);
+    DECLARE_R_MAT(p_output,output);
+    for(int i = 0; i < output->rows; i++){                 // 高   y    
+        for(int j = 0; j < input->cols; j++){              //宽     x
+            if(p_input[i][j] >= threshold){
+                p_output[i][j] = 255;
+            }else{
+                p_output[i][j] = 0;
+            }
+        }
+    }
+    return 0;
+}
+int sv_binarize_1(Mat* input, Mat * output,int x, int y,int w,int h)
+{
+    if(input == NULL || output == NULL){
+        return 1;
+    }
+    DECLARE_R_MAT(p_input,input);
+    DECLARE_R_MAT(p_output,output);
+    for(int i = 0; i < output->rows; i++){                 // 高   y    
+        for(int j = 0; j < input->cols; j++){              //宽     x
+            if(j >= x && i <= x + w && i >= h && y <= )
+        }
+    }
+    return 0;
 }
 int main()
 {
     SetConsoleOutputCP(65001);
     Mat * p_mat = imread("test_1.jpg",3);
     Mat * p_out = mat_create(p_mat->rows,p_mat->cols,1,0);
-    sv_crop_1(p_mat,0,0,1000,200);
-    imwrite(p_mat,"test_out.jpg",3);
+    //memset(p_out->data,0x30,p_out->channels * p_out->cols * p_out->rows);
+    sv_rgb_to_gray(p_mat,p_out);
+    sv_binarize(p_out,p_out,100);
+    imwrite(p_out,"test_out.jpg",1);
 }
